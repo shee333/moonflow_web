@@ -19,6 +19,7 @@ import '@xyflow/react/dist/style.css';
 import { MoonFlowNode } from './MoonFlowNode';
 import { ComponentPalette } from './ComponentPalette';
 import { ComponentType } from './types';
+import { useHistory } from '../hooks';
 
 const nodeTypes = {
   moonflow: MoonFlowNode,
@@ -100,19 +101,36 @@ const initialEdges: Edge[] = [
   },
 ];
 
+interface GraphState {
+  nodes: Node[];
+  edges: Edge[];
+}
+
 export function DAGEditor() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
+  
+  const history = useHistory<GraphState>(
+    { nodes: initialNodes, edges: initialEdges },
+    100
+  );
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge({ ...params, 
-      animated: true,
-      style: { stroke: '#007acc', strokeWidth: 2 },
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#007acc' }
-    }, eds)),
-    [setEdges],
+    (params: Connection) => {
+      const newEdge = {
+        ...params,
+        animated: true,
+        style: { stroke: '#007acc', strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#007acc' }
+      } as Edge;
+      
+      const newEdges = addEdge(newEdge, edges);
+      setEdges(newEdges);
+      history.set({ nodes, edges: newEdges });
+    },
+    [edges, nodes, setEdges, history]
   );
 
   const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
@@ -140,8 +158,33 @@ export function DAGEditor() {
         description,
       },
     };
-    setNodes((nds) => [...nds, newNode]);
-  }, [setNodes]);
+    const newNodes = [...nodes, newNode];
+    setNodes(newNodes);
+    history.set({ nodes: newNodes, edges });
+  }, [nodes, edges, setNodes, history]);
+
+  const onNodesDelete = useCallback(
+    (deletedNodes: Node[]) => {
+      const newNodes = nodes.filter((node) => !deletedNodes.some((d) => d.id === node.id));
+      const newEdges = edges.filter(
+        (edge) => !deletedNodes.some((d) => d.id === edge.source || d.id === edge.target)
+      );
+      setNodes(newNodes);
+      setEdges(newEdges);
+      history.set({ nodes: newNodes, edges: newEdges });
+      setSelectedNode(null);
+    },
+    [nodes, edges, setNodes, setEdges, history]
+  );
+
+  const onEdgesDelete = useCallback(
+    (deletedEdges: Edge[]) => {
+      const newEdges = edges.filter((edge) => !deletedEdges.some((d) => d.id === edge.id));
+      setEdges(newEdges);
+      history.set({ nodes, edges: newEdges });
+    },
+    [nodes, edges, setEdges, history]
+  );
 
   const onInit = useCallback((instance: ReactFlowInstance) => {
     setReactFlowInstance(instance);
@@ -185,21 +228,39 @@ export function DAGEditor() {
           },
         };
 
-        setNodes((nds) => [...nds, newNode]);
+        const newNodes = [...nodes, newNode];
+        setNodes(newNodes);
+        history.set({ nodes: newNodes, edges });
       } catch (error) {
         console.error('Failed to parse dropped component:', error);
       }
     },
-    [reactFlowInstance, setNodes],
+    [reactFlowInstance, nodes, edges, setNodes, history]
   );
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Delete' || event.key === 'Backspace') {
-        if (selectedNode && !(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)) {
-          setNodes((nds) => nds.filter((node) => node.id !== selectedNode.id));
-          setEdges((eds) => eds.filter((edge) => edge.source !== selectedNode.id && edge.target !== selectedNode.id));
-          setSelectedNode(null);
+      const isInputFocused = event.target instanceof HTMLInputElement || 
+                             event.target instanceof HTMLTextAreaElement;
+      
+      if (isInputFocused) return;
+
+      if (event.key === 'z' && (event.ctrlKey || event.metaKey) && !event.shiftKey) {
+        event.preventDefault();
+        if (history.canUndo) {
+          const prevState = history.past[history.past.length - 1];
+          history.undo();
+          setNodes(prevState.nodes);
+          setEdges(prevState.edges);
+        }
+      } else if ((event.key === 'z' && (event.ctrlKey || event.metaKey) && event.shiftKey) ||
+                 (event.key === 'y' && (event.ctrlKey || event.metaKey))) {
+        event.preventDefault();
+        if (history.canRedo) {
+          const nextState = history.future[0];
+          history.redo();
+          setNodes(nextState.nodes);
+          setEdges(nextState.edges);
         }
       } else if (event.key === 'Escape') {
         setSelectedNode(null);
@@ -234,7 +295,7 @@ export function DAGEditor() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNode, nodes, edges, setNodes, setEdges]);
+  }, [history, nodes, edges, setNodes, setEdges, selectedNode]);
 
   return (
     <div style={{ width: '100%', height: '100%' }}>
@@ -247,6 +308,8 @@ export function DAGEditor() {
         onNodeClick={onNodeClick}
         onNodeDoubleClick={onNodeDoubleClick}
         onPaneClick={onPaneClick}
+        onNodesDelete={onNodesDelete}
+        onEdgesDelete={onEdgesDelete}
         onInit={onInit}
         onDrop={onDrop}
         onDragOver={onDragOver}
@@ -281,8 +344,64 @@ export function DAGEditor() {
         <Panel position="top-left">
           <ComponentPalette onAdd={onNodeAdd} />
         </Panel>
-        {selectedNode && (
-          <Panel position="top-right">
+        
+        <Panel position="top-right">
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            marginBottom: '8px'
+          }}>
+            <button
+              onClick={() => {
+                if (history.canUndo) {
+                  const prevState = history.past[history.past.length - 1];
+                  history.undo();
+                  setNodes(prevState.nodes);
+                  setEdges(prevState.edges);
+                }
+              }}
+              disabled={!history.canUndo}
+              style={{
+                padding: '6px 12px',
+                backgroundColor: history.canUndo ? '#6b7280' : '#3c3c3c',
+                border: 'none',
+                borderRadius: '4px',
+                color: 'white',
+                cursor: history.canUndo ? 'pointer' : 'not-allowed',
+                fontSize: '12px',
+                opacity: history.canUndo ? 1 : 0.5,
+              }}
+              title="Undo (Ctrl+Z)"
+            >
+              ↩️ Undo
+            </button>
+            <button
+              onClick={() => {
+                if (history.canRedo) {
+                  const nextState = history.future[0];
+                  history.redo();
+                  setNodes(nextState.nodes);
+                  setEdges(nextState.edges);
+                }
+              }}
+              disabled={!history.canRedo}
+              style={{
+                padding: '6px 12px',
+                backgroundColor: history.canRedo ? '#6b7280' : '#3c3c3c',
+                border: 'none',
+                borderRadius: '4px',
+                color: 'white',
+                cursor: history.canRedo ? 'pointer' : 'not-allowed',
+                fontSize: '12px',
+                opacity: history.canRedo ? 1 : 0.5,
+              }}
+              title="Redo (Ctrl+Shift+Z)"
+            >
+              ↪️ Redo
+            </button>
+          </div>
+          
+          {selectedNode && (
             <div style={{ 
               padding: '16px', 
               background: 'white', 
@@ -314,8 +433,9 @@ export function DAGEditor() {
                 Configure Node
               </button>
             </div>
-          </Panel>
-        )}
+          )}
+        </Panel>
+        
         <div style={{
           position: 'absolute',
           bottom: '20px',
@@ -327,7 +447,7 @@ export function DAGEditor() {
           fontSize: '12px',
           pointerEvents: 'none'
         }}>
-          Double-click node to configure • Delete to remove • Ctrl+S to save
+          Double-click node to configure • Delete to remove • Ctrl+Z Undo • Ctrl+Shift+Z Redo • Ctrl+S to save
         </div>
       </ReactFlow>
     </div>

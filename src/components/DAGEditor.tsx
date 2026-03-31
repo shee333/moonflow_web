@@ -137,6 +137,10 @@ export function DAGEditor() {
     setShowNodeEditor(false);
   }, [nodes, edges, setNodes, history]);
 
+  const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
+    setSelectedNode(node);
+  }, []);
+
   const onNodeDoubleClick: NodeMouseHandler = useCallback((event, node) => {
     setSelectedNode(node);
     setShowNodeEditor(true);
@@ -162,20 +166,6 @@ export function DAGEditor() {
     },
     [edges, nodes, setEdges, history]
   );
-
-  const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
-    setSelectedNode(node);
-  }, []);
-
-  const onNodeDoubleClick: NodeMouseHandler = useCallback((event, node) => {
-    setSelectedNode(node);
-    const customEvent = new CustomEvent('openNodeConfig', { detail: { nodeId: node.id } });
-    window.dispatchEvent(customEvent);
-  }, []);
-
-  const onPaneClick = useCallback(() => {
-    setSelectedNode(null);
-  }, []);
 
   const onNodeAdd = useCallback((componentType: string, label: string, description: string) => {
     const newNode: Node = {

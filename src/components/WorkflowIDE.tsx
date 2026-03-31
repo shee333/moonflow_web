@@ -4,6 +4,7 @@ import { CodeEditor } from './CodeEditor';
 import { ExecutionPanel } from './ExecutionPanel';
 import { generateMoonBitCode, validateWorkflow } from '../utils/codeGenerator';
 import { Workflow } from './types';
+import { useTheme } from '../context';
 import './WorkflowIDE.css';
 
 type ViewMode = 'dag' | 'code' | 'split';
@@ -13,6 +14,7 @@ export function WorkflowIDE() {
   const [showExecutionPanel, setShowExecutionPanel] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
   const [validationResult, setValidationResult] = useState<{ valid: boolean; errors: string[] } | null>(null);
+  const { theme, toggleTheme } = useTheme();
   const [workflowCode, setWorkflowCode] = useState<string>(JSON.stringify({
     id: 'workflow-1',
     name: 'Example Workflow',
@@ -128,7 +130,7 @@ export function WorkflowIDE() {
   }, []);
 
   return (
-    <div className="workflow-ide">
+    <div className="workflow-ide" data-theme={theme}>
       {validationResult && (
         <div
           style={{
@@ -233,6 +235,13 @@ export function WorkflowIDE() {
           >
             📋 {showExecutionPanel ? 'Hide' : 'Show'} Logs
           </button>
+          <button
+            onClick={toggleTheme}
+            className="secondary"
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+          >
+            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+          </button>
         </div>
       </div>
 
@@ -287,7 +296,7 @@ export function WorkflowIDE() {
           {isRunning ? 'Running' : 'Ready'}
         </div>
         <div className="info">
-          MoonFlow Studio v0.1.0 | Node.js 20.18.0
+          MoonFlow Studio v0.1.0 | {theme === 'dark' ? '🌙 Dark' : '☀️ Light'} Theme | Node.js 20.18.0
         </div>
       </div>
     </div>

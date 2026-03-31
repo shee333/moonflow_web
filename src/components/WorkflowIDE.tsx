@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { DAGEditor } from './DAGEditor';
 import { CodeEditor } from './CodeEditor';
 import { ExecutionPanel } from './ExecutionPanel';
+import { CodePreview } from './CodePreview';
 import { generateMoonBitCode, validateWorkflow } from '../utils/codeGenerator';
 import { Workflow } from './types';
 import { useTheme } from '../context';
@@ -131,6 +132,7 @@ export function WorkflowIDE() {
 
   return (
     <div className="workflow-ide" data-theme={theme}>
+      <CodePreview />
       {validationResult && (
         <div
           style={{

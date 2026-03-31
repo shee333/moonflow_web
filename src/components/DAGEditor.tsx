@@ -20,6 +20,7 @@ import { MoonFlowNode } from './MoonFlowNode';
 import { ComponentPalette } from './ComponentPalette';
 import { ComponentType } from './types';
 import { useHistory } from '../hooks';
+import { NodeEditorPanel } from './NodeEditorPanel';
 
 const nodeTypes = {
   moonflow: MoonFlowNode,
@@ -111,11 +112,40 @@ export function DAGEditor() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
+  const [showNodeEditor, setShowNodeEditor] = useState(false);
   
   const history = useHistory<GraphState>(
     { nodes: initialNodes, edges: initialEdges },
     100
   );
+
+  const handleNodeUpdate = useCallback((nodeId: string, data: any) => {
+    const updatedNodes = nodes.map((node) => {
+      if (node.id === nodeId) {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            ...data,
+          },
+        };
+      }
+      return node;
+    });
+    setNodes(updatedNodes);
+    history.set({ nodes: updatedNodes, edges });
+    setShowNodeEditor(false);
+  }, [nodes, edges, setNodes, history]);
+
+  const onNodeDoubleClick: NodeMouseHandler = useCallback((event, node) => {
+    setSelectedNode(node);
+    setShowNodeEditor(true);
+  }, []);
+
+  const onPaneClick = useCallback(() => {
+    setSelectedNode(null);
+    setShowNodeEditor(false);
+  }, []);
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -317,6 +347,13 @@ export function DAGEditor() {
         fitView
         deleteKeyCode={['Delete', 'Backspace']}
       >
+        {showNodeEditor && selectedNode && (
+          <NodeEditorPanel
+            node={selectedNode}
+            onUpdate={handleNodeUpdate}
+            onClose={() => setShowNodeEditor(false)}
+          />
+        )}
         <Background color="#3c3c3c" gap={20} />
         <Controls 
           showZoom={true}
@@ -400,40 +437,6 @@ export function DAGEditor() {
               ↪️ Redo
             </button>
           </div>
-          
-          {selectedNode && (
-            <div style={{ 
-              padding: '16px', 
-              background: 'white', 
-              borderRadius: '8px', 
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              minWidth: '280px'
-            }}>
-              <h3 style={{ marginTop: 0, marginBottom: '8px' }}>{selectedNode.data.label}</h3>
-              <p style={{ margin: '4px 0', fontSize: '13px' }}><strong>Component:</strong> {selectedNode.data.component}</p>
-              <p style={{ margin: '4px 0', fontSize: '13px' }}><strong>Description:</strong> {selectedNode.data.description}</p>
-              <p style={{ margin: '4px 0', fontSize: '13px' }}><strong>ID:</strong> {selectedNode.id}</p>
-              <button
-                onClick={() => {
-                  const customEvent = new CustomEvent('openNodeConfig', { detail: { nodeId: selectedNode.id } });
-                  window.dispatchEvent(customEvent);
-                }}
-                style={{
-                  marginTop: '12px',
-                  width: '100%',
-                  padding: '8px',
-                  backgroundColor: '#007acc',
-                  border: 'none',
-                  borderRadius: '4px',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: '13px'
-                }}
-              >
-                Configure Node
-              </button>
-            </div>
-          )}
         </Panel>
         
         <div style={{
@@ -447,7 +450,7 @@ export function DAGEditor() {
           fontSize: '12px',
           pointerEvents: 'none'
         }}>
-          Double-click node to configure • Delete to remove • Ctrl+Z Undo • Ctrl+Shift+Z Redo • Ctrl+S to save
+          Double-click node to edit configuration • Delete to remove • Ctrl+Z Undo • Ctrl+Shift+Z Redo • Ctrl+S to save
         </div>
       </ReactFlow>
     </div>

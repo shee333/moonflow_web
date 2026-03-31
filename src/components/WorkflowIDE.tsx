@@ -5,6 +5,7 @@ import { ExecutionPanel } from './ExecutionPanel';
 import { CodePreview } from './CodePreview';
 import { WorkflowManager } from './WorkflowManager';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
+import { AnalyticsDashboard } from './AnalyticsDashboard';
 import { generateMoonBitCode, validateWorkflow } from '../utils/codeGenerator';
 import { Workflow } from './types';
 import { useTheme } from '../context';
@@ -351,6 +352,7 @@ export function WorkflowIDE() {
         }}
       />
       <KeyboardShortcutsHelp />
+      <AnalyticsDashboard />
     </div>
   );
 }

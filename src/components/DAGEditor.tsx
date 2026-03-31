@@ -398,9 +398,9 @@ export function DAGEditor() {
                 fontSize: '12px',
                 opacity: history.canUndo ? 1 : 0.5,
               }}
-              title="Undo (Ctrl+Z)"
+              title="撤销 (Ctrl+Z)"
             >
-              ↩️ Undo
+              ↩️ 撤销
             </button>
             <button
               onClick={() => {
@@ -422,9 +422,9 @@ export function DAGEditor() {
                 fontSize: '12px',
                 opacity: history.canRedo ? 1 : 0.5,
               }}
-              title="Redo (Ctrl+Shift+Z)"
+              title="重做 (Ctrl+Shift+Z)"
             >
-              ↪️ Redo
+              ↪️ 重做
             </button>
           </div>
         </Panel>
@@ -440,7 +440,7 @@ export function DAGEditor() {
           fontSize: '12px',
           pointerEvents: 'none'
         }}>
-          Double-click node to edit configuration • Delete to remove • Ctrl+Z Undo • Ctrl+Shift+Z Redo • Ctrl+S to save
+          双击节点编辑配置 • Delete 删除节点 • Ctrl+Z 撤销 • Ctrl+Shift+Z 重做 • Ctrl+S 保存
         </div>
       </ReactFlow>
     </div>

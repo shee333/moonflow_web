@@ -587,8 +587,12 @@ export function validateWorkflow(workflow: Workflow): { valid: boolean; errors: 
 
 function findUnreachableNodes(nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowNode[] {
   const startNodes = findStartNodes(nodes, edges);
+  
+  if (startNodes.length === 0) return nodes;
+  
+  const mainStartNode = startNodes[0];
   const reachable = new Set<string>();
-  const queue = [...startNodes];
+  const queue = [mainStartNode];
 
   while (queue.length > 0) {
     const node = queue.shift()!;

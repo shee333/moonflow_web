@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 interface HistoryState<T> {
   past: T[];
@@ -18,6 +18,8 @@ interface HistoryActions<T> {
 type History<T> = HistoryState<T> & HistoryActions<T>;
 
 export function useHistory<T>(initialPresent: T, maxHistory: number = 50): History<T> {
+  const initialRef = useRef(initialPresent);
+  
   const [state, setState] = useState<HistoryState<T>>({
     past: [],
     present: initialPresent,
@@ -77,11 +79,11 @@ export function useHistory<T>(initialPresent: T, maxHistory: number = 50): Histo
   }, []);
 
   const clear = useCallback(() => {
-    setState((currentState) => ({
+    setState({
       past: [],
-      present: currentState.present,
+      present: initialRef.current,
       future: [],
-    }));
+    });
   }, []);
 
   return {
